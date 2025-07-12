@@ -28,6 +28,16 @@ async function updateFcmToken(userId, fcmToken) {
   return await Account.findByIdAndUpdate(userId, { fcmToken }, { new: true });
 }
 
+async function login(email, password) {
+  const account = await Account.findOne({ email });
+  if (!account || account.password !== password) {
+    throw new Error('Invalid email or password');
+  }
+
+  return { account };
+}
+
+
 module.exports = {
   createAccount,
   getAllAccounts,
@@ -35,5 +45,6 @@ module.exports = {
   updateAccount,
   deleteAccount,
   updateFcmToken,
-  getAccountByEmail 
+  getAccountByEmail,
+  login
 };

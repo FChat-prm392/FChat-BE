@@ -75,3 +75,17 @@ exports.updateFcmToken = async (req, res) => {
     handleValidationError(err, res);
   }
 };
+
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
+
+    const { account } = await accountService.login(email, password);
+    const responseDto = new AccountResponseDto(account);
+    res.json({ user: responseDto });
+  } catch (err) {
+    res.status(401).json({ message: err.message });
+  }
+};
+

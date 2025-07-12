@@ -11,36 +11,26 @@ const accountController = require('../controllers/accountController');
  *       properties:
  *         id:
  *           type: string
- *           description: Account ID
  *         fullname:
  *           type: string
- *           description: Full name of the user
  *         username:
  *           type: string
- *           description: Username
  *         email:
  *           type: string
  *           format: email
- *           description: Email address
  *         gender:
  *           type: string
- *           description: Gender
  *         phoneNumber:
  *           type: string
- *           description: Phone number
  *         imageURL:
  *           type: string
- *           description: Profile image URL
  *         currentStatus:
  *           type: string
- *           description: Current status message
  *         status:
  *           type: boolean
- *           description: Account active status
  *         lastOnline:
  *           type: string
  *           format: date-time
- *           description: Last online timestamp
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -57,65 +47,47 @@ const accountController = require('../controllers/accountController');
  *       properties:
  *         fullname:
  *           type: string
- *           description: Full name of the user
  *         username:
  *           type: string
- *           description: Username
  *         email:
  *           type: string
  *           format: email
- *           description: Email address
  *         password:
  *           type: string
  *           minLength: 6
- *           description: Password (minimum 6 characters)
  *         fcmToken:
  *           type: string
- *           description: Firebase Cloud Messaging token
  *         gender:
  *           type: string
- *           description: Gender
  *         phoneNumber:
  *           type: string
- *           description: Phone number
  *         imageURL:
  *           type: string
- *           description: Profile image URL
  *         currentStatus:
  *           type: string
- *           description: Current status message
  *     UpdateAccount:
  *       type: object
  *       properties:
  *         fullname:
  *           type: string
- *           description: Full name of the user
  *         username:
  *           type: string
- *           description: Username
  *         email:
  *           type: string
  *           format: email
- *           description: Email address
  *         gender:
  *           type: string
- *           description: Gender
  *         phoneNumber:
  *           type: string
- *           description: Phone number
  *         imageURL:
  *           type: string
- *           description: Profile image URL
  *         currentStatus:
  *           type: string
- *           description: Current status message
  *         status:
  *           type: boolean
- *           description: Account active status
  *         lastOnline:
  *           type: string
  *           format: date-time
- *           description: Last online timestamp
  *     UpdateFcmToken:
  *       type: object
  *       required:
@@ -124,21 +96,35 @@ const accountController = require('../controllers/accountController');
  *       properties:
  *         userId:
  *           type: string
- *           description: User ID
  *         fcmToken:
  *           type: string
- *           description: Firebase Cloud Messaging token
+ *     LoginRequest:
+ *       type: object
+ *       required:
+ *         - email
+ *         - password
+ *       properties:
+ *         email:
+ *           type: string
+ *           format: email
+ *         password:
+ *           type: string
+ *     LoginResponse:
+ *       type: object
+ *       properties:
+ *         token:
+ *           type: string
+ *         user:
+ *           $ref: '#/components/schemas/Account'
  *     ValidationError:
  *       type: object
  *       properties:
  *         message:
  *           type: string
- *           example: "Validation failed"
  *         errors:
  *           type: array
  *           items:
  *             type: string
- *           example: ["Email is required", "Password must be at least 6 characters"]
  */
 
 /**
@@ -203,7 +189,6 @@ router.get('/', accountController.getAll);
  *         required: true
  *         schema:
  *           type: string
- *         description: Account ID
  *     responses:
  *       200:
  *         description: Account found
@@ -230,7 +215,6 @@ router.get('/:id', accountController.getById);
  *         required: true
  *         schema:
  *           type: string
- *         description: Account ID
  *     requestBody:
  *       required: true
  *       content:
@@ -269,7 +253,6 @@ router.put('/:id', accountController.update);
  *         required: true
  *         schema:
  *           type: string
- *         description: Account ID
  *     responses:
  *       200:
  *         description: Account deleted successfully
@@ -310,7 +293,6 @@ router.delete('/:id', accountController.remove);
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "FCM token updated"
  *       400:
  *         description: Validation error
  *         content:
@@ -323,5 +305,33 @@ router.delete('/:id', accountController.remove);
  *         description: Internal server error
  */
 router.patch('/update-fcm-token', accountController.updateFcmToken);
+
+/**
+ * @swagger
+ * /api/accounts/login:
+ *   post:
+ *     summary: Login with email and password
+ *     tags: [Accounts]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LoginRequest'
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/LoginResponse'
+ *       400:
+ *         description: Missing email or password
+ *       401:
+ *         description: Invalid credentials
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/login', accountController.login);
 
 module.exports = router;
