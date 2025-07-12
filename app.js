@@ -5,6 +5,7 @@ const { Server } = require('socket.io');
 const { connectDb } = require('./src/config/db');
 const { sendPushNotification } = require('./src/utils/fcmService');
 const Account = require('./src/models/Account');
+const setupSwagger = require('./src/config/swagger');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,9 +16,10 @@ const io = new Server(server, {
   }
 });
 
-app.use(express.json());
 
-// ✅ Routes
+app.use(express.json());
+setupSwagger(app);
+
 const accountRoutes = require('./src/routes/accountRoutes');
 const chatRoutes = require('./src/routes/chatRoutes');
 const messageRoutes = require('./src/routes/messageRoutes');
