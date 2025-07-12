@@ -15,3 +15,4 @@ build/
 dist/
 
 *.swp
+firebase-service-account.json
