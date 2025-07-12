@@ -7,9 +7,16 @@ async function createChat(data) {
 async function getAllChatsForUser(userId) {
   return await Chat.find({ participants: userId })
     .populate('participants', 'fullname username imageURL')
-    .populate('lastMessageID')
+    .populate({
+      path: 'lastMessageID',
+      populate: {
+        path: 'senderID',
+        select: 'fullname username imageURL'
+      }
+    })
     .sort({ updateAt: -1 });
 }
+
 
 async function getChatById(chatId) {
   return await Chat.findById(chatId)
