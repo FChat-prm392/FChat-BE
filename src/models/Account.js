@@ -5,6 +5,7 @@ const accountSchema = new mongoose.Schema({
   username: String,
   email: String,
   password: String,
+  fcmToken: String,
   gender: String,
   phoneNumber: String,
   imageURL: String,
