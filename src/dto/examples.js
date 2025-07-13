@@ -19,7 +19,7 @@ try {
   
   const accountDto = new CreateAccountDto(validAccountData);
   validateDto(accountDto);
-  console.log("✅ Valid account DTO created successfully");
+  console.log(" Valid account DTO created successfully");
 } catch (error) {
   console.log("❌ Account validation failed:", error.errors);
 }
@@ -34,7 +34,7 @@ try {
   
   const accountDto = new CreateAccountDto(invalidAccountData);
   validateDto(accountDto);
-  console.log("✅ This shouldn't print");
+  console.log(" This shouldn't print");
 } catch (error) {
   console.log("❌ Expected validation errors:", error.errors);
 }
@@ -50,7 +50,7 @@ try {
   
   const chatDto = new CreateChatDto(validChatData);
   validateDto(chatDto);
-  console.log("✅ Valid chat DTO created successfully");
+  console.log(" Valid chat DTO created successfully");
 } catch (error) {
   console.log("❌ Chat validation failed:", error.errors);
 }
@@ -72,7 +72,7 @@ try {
   
   const messageDto = new CreateMessageDto(validMessageData);
   validateDto(messageDto);
-  console.log("✅ Valid message DTO created successfully");
+  console.log(" Valid message DTO created successfully");
 } catch (error) {
   console.log("❌ Message validation failed:", error.errors);
 }

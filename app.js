@@ -26,6 +26,7 @@ setupSwagger(app);
 const accountRoutes = require('./src/routes/accountRoutes');
 const chatRoutes = require('./src/routes/chatRoutes');
 const messageRoutes = require('./src/routes/messageRoutes');
+const messageReactionRoutes = require('./src/routes/messageReactionRoutes');
 const friendshipRoutes = require('./src/routes/friendshipRoutes');
 const authRoutes = require('./src/routes/authRoutes');
 const Message = require('./src/models/Message');
@@ -34,6 +35,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api', messageReactionRoutes);
 app.use('/api/friendships', friendshipRoutes);
 
 // Add route to get chat participants for calling functionality
@@ -61,10 +63,10 @@ app.get('/api/chats/:chatId/participants', async (req, res) => {
 });
 
 io.on('connection', (socket) => {
-  console.log(`🔌 Socket connected: ${socket.id}`);
+  console.log(` Socket connected: ${socket.id}`);
 
   socket.on('register-user', async (userId) => {
-    console.log(`👤 Registering user: ${userId} with socket: ${socket.id}`);
+    console.log(` Registering user: ${userId} with socket: ${socket.id}`);
     const existingSocketId = onlineUsersManager.getSocketId(userId);
     if (existingSocketId && existingSocketId !== socket.id) {
       console.log(`🔄 Removing old socket ${existingSocketId} for user ${userId}`);
@@ -82,18 +84,18 @@ io.on('connection', (socket) => {
       
       for (const chat of userChats) {
         socket.join(chat._id.toString());
-        console.log(`🏠 Auto-joined user ${userId} to chat room ${chat._id}`);
+        console.log(` Auto-joined user ${userId} to chat room ${chat._id}`);
       }
       
-      console.log(`✅ User ${userId} registered and joined ${userChats.length} chat rooms`);
+      console.log(` User ${userId} registered and joined ${userChats.length} chat rooms`);
     } catch (error) {
       console.error(`❌ Error auto-joining chat rooms for user ${userId}:`, error);
-      console.log(`✅ User ${userId} registered (without auto-join due to error)`);
+      console.log(` User ${userId} registered (without auto-join due to error)`);
     }
   });
 
   socket.on('join-room', (chatId) => {
-    console.log(`🏠 Socket ${socket.id} manually joining room: ${chatId}`);
+    console.log(` Socket ${socket.id} manually joining room: ${chatId}`);
     socket.join(chatId);
   });
 
@@ -101,7 +103,7 @@ io.on('connection', (socket) => {
   socket.on('user-joined-chat', (data) => {
     console.log(`🆕 User ${data.userId} joined new chat ${data.chatId}`);
     socket.join(data.chatId);
-    console.log(`🏠 Added user to chat room ${data.chatId}`);
+    console.log(` Added user to chat room ${data.chatId}`);
   });
 
   socket.on('send-message', async (messageData) => {
@@ -201,7 +203,7 @@ io.on('connection', (socket) => {
       timestamp: new Date()
     });
     
-    console.log(`✅ Status updates sent for message ${data.messageId}`);
+    console.log(` Status updates sent for message ${data.messageId}`);
   });
 
   // Enhanced sync-message-status with better filtering and chat context
@@ -260,7 +262,7 @@ io.on('connection', (socket) => {
         chatId: data.chatId || null
       });
       
-      console.log(`✅ Sync complete - ${syncCount} messages synced for user ${data.userId}`);
+      console.log(` Sync complete - ${syncCount} messages synced for user ${data.userId}`);
       
     } catch (error) {
       console.error('❌ Error syncing message status:', error);
@@ -290,7 +292,7 @@ io.on('connection', (socket) => {
       );
       
       if (result) {
-        console.log(`✅ Delivered status saved for message ${data.messageId}`);
+        console.log(` Delivered status saved for message ${data.messageId}`);
         
         // Emit to all users in the chat
         io.to(data.chatId).emit('message-status-update', {
@@ -328,7 +330,7 @@ io.on('connection', (socket) => {
       );
       
       if (result) {
-        console.log(`✅ Read status saved for message ${data.messageId}`);
+        console.log(` Read status saved for message ${data.messageId}`);
         
         // Emit to all users in the chat (especially the sender)
         io.to(data.chatId).emit('message-status-update', {
@@ -401,7 +403,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('user-entered-chat', (data) => {
-    console.log(`👤 user-entered-chat: ${data.userId} entered chat ${data.chatId}`);
+    console.log(` user-entered-chat: ${data.userId} entered chat ${data.chatId}`);
     socket.to(data.chatId).emit('user-chat-presence', {
       userId: data.userId,
       isInChat: true
@@ -409,7 +411,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('user-left-chat', (data) => {
-    console.log(`👤 user-left-chat: ${data.userId} left chat ${data.chatId}`);
+    console.log(` user-left-chat: ${data.userId} left chat ${data.chatId}`);
     socket.to(data.chatId).emit('user-chat-presence', {
       userId: data.userId,
       isInChat: false
@@ -476,7 +478,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('call-answer', (data) => {
-    console.log(`✅ Call answered: ${data.callId}`);
+    console.log(` Call answered: ${data.callId}`);
     
     // Notify caller that call was answered
     const callerSocketId = onlineUsersManager.getSocketId(data.callerId);
@@ -554,7 +556,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', async () => {
-    console.log(`🔌 Socket disconnected: ${socket.id}`);
+    console.log(` Socket disconnected: ${socket.id}`);
     const userId = onlineUsersManager.removeBySocketId(socket.id);
     if (userId) {
       try {
@@ -568,7 +570,7 @@ io.on('connection', (socket) => {
           isOnline: false,
           lastOnline: updatedAccount.lastOnline
         });
-        console.log(`✅ User ${userId} marked offline`);
+        console.log(` User ${userId} marked offline`);
       } catch (err) {
         console.error(`❌ Error updating lastOnline for user ${userId}:`, err);
       }
@@ -590,7 +592,7 @@ io.on('connection', (socket) => {
         isOnline: false,
         lastOnline: updatedAccount.lastOnline
       });
-      console.log(`✅ User ${userId} logged out and marked offline`);
+      console.log(` User ${userId} logged out and marked offline`);
     } catch (err) {
       console.error(`❌ Error updating lastOnline for user ${userId}:`, err);
     }
@@ -602,7 +604,7 @@ const HOST = '0.0.0.0';
 connectDb()
   .then(() => {
     server.listen(PORT, HOST, () => {
-      console.log(`🚀 Server running at http://${HOST}:${PORT}`);
+      console.log(`Server running at http://${HOST}:${PORT}`);
       console.log(`📡 Socket.IO server ready for connections`);
     });
   })

@@ -111,5 +111,3 @@ router.get('/list/:userId', friendshipController.getFriendList);
 router.delete('/:id', friendshipController.deleteFriendship);
 
 module.exports = router;
-
-module.exports = router;

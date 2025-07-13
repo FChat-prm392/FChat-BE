@@ -84,7 +84,7 @@ function setupSwagger(app) {
     res.send(swaggerSpec);
   });
 
-  console.log('📚 Swagger documentation available at http://localhost:3000/api-docs');
+  console.log('Swagger documentation available at http://localhost:3000/api-docs');
 }
 
 module.exports = setupSwagger;
