@@ -62,3 +62,39 @@ exports.updateGroup = async (req, res) => {
     handleValidationError(err, res);
   }
 };
+
+exports.getChatParticipants = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    
+    const chat = await chatService.getChatParticipants(chatId);
+    
+    if (!chat) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Chat not found' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        chatId: chat._id,
+        participants: chat.participants.map(p => ({
+          _id: p._id,
+          fullname: p.fullname,
+          username: p.username,
+          email: p.email,
+          imageURL: p.imageURL,
+          currentStatus: p.currentStatus
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching chat participants:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch chat participants' 
+    });
+  }
+};

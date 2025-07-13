@@ -86,6 +86,26 @@ router.put('/:chatId/add', chatController.addParticipant);
  */
 router.put('/:chatId/update', chatController.updateGroup);
 
-module.exports = router;
+/**
+ * @swagger
+ * /api/chats/{chatId}/participants:
+ *   get:
+ *     summary: Get chat participants
+ *     tags: [Chats]
+ *     parameters:
+ *       - in: path
+ *         name: chatId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Chat participants retrieved successfully
+ *       404:
+ *         description: Chat not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/:chatId/participants', chatController.getChatParticipants);
 
 module.exports = router;

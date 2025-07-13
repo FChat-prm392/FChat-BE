@@ -317,6 +317,106 @@ io.on('connection', (socket) => {
     socket.to(chatID).emit('typing', { sender });
   });
 
+  socket.on('call-initiate', (data) => {
+    const receiverSocketId = onlineUsersManager.getSocketId(data.receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('incoming-call', {
+        callId: data.callId,
+        chatId: data.chatId,
+        callerId: data.callerId,
+        callerName: data.callerName || 'Unknown Caller',
+        isVideoCall: data.isVideoCall,
+        timestamp: data.timestamp
+      });
+    } else {
+      let callAttempted = false;
+      
+      io.sockets.sockets.forEach((clientSocket) => {
+        if (clientSocket.userId === data.receiverId) {
+          clientSocket.emit('incoming-call', {
+            callId: data.callId,
+            chatId: data.chatId,
+            callerId: data.callerId,
+            callerName: data.callerName || 'Unknown Caller',
+            isVideoCall: data.isVideoCall,
+            timestamp: data.timestamp
+          });
+          callAttempted = true;
+        }
+      });
+      
+      if (!callAttempted) {
+        socket.emit('call-failed', {
+          reason: 'Receiver is offline',
+          callId: data.callId
+        });
+      }
+    }
+  });
+
+  socket.on('call-answer', (data) => {
+    const callerSocketId = onlineUsersManager.getSocketId(data.callerId);
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call-answered', {
+        callId: data.callId,
+        timestamp: data.timestamp
+      });
+    }
+  });
+
+  socket.on('call-decline', (data) => {
+    const callerSocketId = onlineUsersManager.getSocketId(data.callerId);
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call-declined', {
+        callId: data.callId,
+        timestamp: data.timestamp
+      });
+    }
+  });
+
+  socket.on('call-end', (data) => {
+    const callerSocketId = onlineUsersManager.getSocketId(data.callerId);
+    const receiverSocketId = onlineUsersManager.getSocketId(data.receiverId);
+    
+    const callEndData = {
+      callId: data.callId,
+      timestamp: data.timestamp
+    };
+    
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call-ended', callEndData);
+    }
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('call-ended', callEndData);
+    }
+  });
+
+  socket.on('call-mute', (data) => {
+    const otherParticipantId = data.callerId === sessionManager?.getCurrentUserId() ? data.receiverId : data.callerId;
+    const otherSocketId = onlineUsersManager.getSocketId(otherParticipantId);
+    
+    if (otherSocketId) {
+      io.to(otherSocketId).emit('call-mute-status', {
+        callId: data.callId,
+        userId: data.userId,
+        isMuted: data.isMuted
+      });
+    }
+  });
+
+  socket.on('call-video-toggle', (data) => {
+    const otherParticipantId = data.callerId === sessionManager?.getCurrentUserId() ? data.receiverId : data.callerId;
+    const otherSocketId = onlineUsersManager.getSocketId(otherParticipantId);
+    
+    if (otherSocketId) {
+      io.to(otherSocketId).emit('call-video-status', {
+        callId: data.callId,
+        userId: data.userId,
+        isVideoOn: data.isVideoOn
+      });
+    }
+  });
+
   socket.on('disconnect', async () => {
     const userId = onlineUsersManager.removeBySocketId(socket.id);
     if (userId) {

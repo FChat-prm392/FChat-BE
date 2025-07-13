@@ -36,10 +36,16 @@ async function updateGroupInfo(chatId, data) {
   return await Chat.findByIdAndUpdate(chatId, data, { new: true });
 }
 
+async function getChatParticipants(chatId) {
+  const chat = await Chat.findById(chatId).populate('participants', '_id fullname username email imageURL currentStatus');
+  return chat;
+}
+
 module.exports = {
   createChat,
   getAllChatsForUser,
   getChatById,
   addUserToChat,
   updateGroupInfo,
+  getChatParticipants
 };
