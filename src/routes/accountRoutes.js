@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const accountController = require('../controllers/accountController');
+const upload = require('../middleware/upload');
 
 /**
  * @swagger
@@ -54,14 +55,11 @@ const accountController = require('../controllers/accountController');
  *           format: email
  *         password:
  *           type: string
- *           minLength: 6
  *         fcmToken:
  *           type: string
  *         gender:
  *           type: string
  *         phoneNumber:
- *           type: string
- *         imageURL:
  *           type: string
  *         currentStatus:
  *           type: string
@@ -131,14 +129,41 @@ const accountController = require('../controllers/accountController');
  * @swagger
  * /api/accounts:
  *   post:
- *     summary: Create a new account
+ *     summary: Create a new account (with optional avatar image)
  *     tags: [Accounts]
+ *     consumes:
+ *       - multipart/form-data
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/CreateAccount'
+ *             type: object
+ *             required:
+ *               - fullname
+ *               - username
+ *               - email
+ *               - password
+ *             properties:
+ *               fullname:
+ *                 type: string
+ *               username:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               fcmToken:
+ *                 type: string
+ *               gender:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *               currentStatus:
+ *                 type: string
+ *               image:
+ *                 type: string
+ *                 format: binary
  *     responses:
  *       201:
  *         description: Account created successfully
@@ -155,7 +180,7 @@ const accountController = require('../controllers/accountController');
  *       500:
  *         description: Internal server error
  */
-router.post('/', accountController.create);
+router.post('/', upload.single('image'), accountController.create);
 
 /**
  * @swagger
@@ -369,4 +394,7 @@ router.post('/login', accountController.login);
  *         description: Internal server error
  */
 router.get('/status/:userId', accountController.getUserStatus);
+
+
+
 module.exports = router;

@@ -3,6 +3,9 @@ const serviceAccount = require('../../firebase-service-account.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
+  storageBucket: `${serviceAccount.project_id}.firebasestorage.app`
 });
 
-module.exports = admin;
+const bucket = admin.storage().bucket();
+
+module.exports = { admin, bucket };

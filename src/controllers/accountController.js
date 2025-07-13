@@ -1,12 +1,31 @@
 const accountService = require('../services/accountService');
 const { CreateEmailAccountDto , UpdateAccountDto, UpdateFcmTokenDto, AccountResponseDto } = require('../dto/accountDto');
 const { validateDto, handleValidationError } = require('../dto/validationHelper');
+const { bucket } = require('../config/firebase');
 
 exports.create = async (req, res) => {
   try {
-    const createAccountDto = new CreateEmailAccountDto(req.body);
+    const file = req.file;
+    const dtoData = req.body;
+    const createAccountDto = new CreateEmailAccountDto(dtoData);
     validateDto(createAccountDto);
-    
+
+    if (file) {
+      const blob = bucket.file(`avatars/${Date.now()}_${file.originalname}`);
+      const blobStream = blob.createWriteStream({
+        metadata: { contentType: file.mimetype }
+      });
+
+      await new Promise((resolve, reject) => {
+        blobStream.on('error', reject);
+        blobStream.on('finish', resolve);
+        blobStream.end(file.buffer);
+      });
+
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+      createAccountDto.imageURL = publicUrl;
+    }
+
     const account = await accountService.createAccount(createAccountDto);
     const responseDto = new AccountResponseDto(account);
     res.status(201).json(responseDto);
