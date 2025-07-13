@@ -1,7 +1,6 @@
 const admin = require('firebase-admin');
 const { getStorage } = require('firebase-admin/storage');
 
-// Check if Firebase is already initialized to prevent re-initialization
 if (!admin.apps.length) {
   try {
     const serviceAccount = require('../../firebase-service-account.json');
@@ -10,14 +9,10 @@ if (!admin.apps.length) {
       credential: admin.credential.cert(serviceAccount),
       storageBucket: `${serviceAccount.project_id}.firebasestorage.app` 
     });
-    
-    console.log('📦 Storage bucket:', `${serviceAccount.project_id}.firebasestorage.app`);
   } catch (error) {
     console.error('❌ Firebase initialization failed:', error);
     throw error;
   }
-} else {
-  console.log('Firebase Admin SDK already initialized');
 }
 
 const bucket = getStorage().bucket();

@@ -5,8 +5,6 @@ const { validateDto, handleValidationError } = require('../dto/validationHelper'
 
 exports.googleLogin = async (req, res) => {
   try {
-    console.log('🔍 Starting Google login process...');
-    
     const { idToken, fcmToken } = req.body;
 
     if (!idToken) {
@@ -16,18 +14,12 @@ exports.googleLogin = async (req, res) => {
       });
     }
 
-    console.log('🔑 Verifying ID token...');
-
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const { uid, email, name, picture } = decodedToken;
-
-    console.log(' Token verified successfully for:', email);
 
     let account = await accountService.getAccountByEmail(email);
 
     if (!account) {
-      console.log(' Creating new user account for:', email);
-      
       const accountData = {
         fullname: name || email.split('@')[0],
         username: email.split('@')[0] + '_' + Date.now(),
@@ -44,14 +36,10 @@ exports.googleLogin = async (req, res) => {
       validateDto(createAccountDto);
       
       account = await accountService.createAccount(createAccountDto);
-      console.log(' New account created successfully');
     } else {
-      console.log(' User already exists');
-      
       if (fcmToken && fcmToken !== account.fcmToken) {
         await accountService.updateFcmToken(account._id, fcmToken);
         account = await accountService.getAccountById(account._id);
-        console.log(' FCM token updated');
       }
     }
 
