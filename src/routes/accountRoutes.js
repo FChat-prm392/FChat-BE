@@ -334,4 +334,39 @@ router.patch('/update-fcm-token', accountController.updateFcmToken);
  */
 router.post('/login', accountController.login);
 
+
+/**
+ * @swagger
+ * /api/accounts/status/{id}:
+ *   get:
+ *     summary: Get user online status
+ *     tags: [Accounts]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID to check status
+ *     responses:
+ *       200:
+ *         description: User status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 userId:
+ *                   type: string
+ *                   description: The user ID
+ *                 isOnline:
+ *                   type: boolean
+ *                   description: Whether the user is currently online
+ *               example:
+ *                 userId: "64f5a8b12345678901234567"
+ *                 isOnline: true
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/status/:userId', accountController.getUserStatus);
 module.exports = router;

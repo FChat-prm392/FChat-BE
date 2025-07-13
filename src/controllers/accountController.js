@@ -89,3 +89,14 @@ exports.login = async (req, res) => {
   }
 };
 
+exports.getUserStatus = async (req,res) => {
+  try
+  {
+   const {userId} = req.params;
+   const status = await accountService.getUserStatus(userId);
+   res.json(status);
+  } catch (err)
+  {
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
