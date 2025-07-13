@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const accountController = require('../controllers/accountController');
+const upload = require('../middleware/upload');
 
 /**
  * @swagger
@@ -37,13 +38,45 @@ const accountController = require('../controllers/accountController');
  * @swagger
  * /api/accounts:
  *   post:
- *     summary: Create account
+ *     summary: Create account (with image upload)
  *     tags: [Accounts]
+ *     consumes:
+ *       - multipart/form-data
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullname:
+ *                 type: string
+ *               username:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               gender:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *               currentStatus:
+ *                 type: string
+ *               fcmToken:
+ *                 type: string
+ *               image:
+ *                 type: string
+ *                 format: binary
  *     responses:
  *       201:
  *         description: Account created
+ *       400:
+ *         description: Bad request
+ *       500:
+ *         description: Internal server error
  */
-router.post('/', accountController.create);
+router.post('/', upload.single('image'), accountController.create);
 
 /**
  * @swagger

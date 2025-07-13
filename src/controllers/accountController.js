@@ -1,11 +1,11 @@
 const accountService = require('../services/accountService');
-const { CreateAccountDto, UpdateAccountDto, UpdateFcmTokenDto, AccountResponseDto } = require('../dto/accountDto');
+const { CreateEmailAccountDto, UpdateAccountDto, UpdateFcmTokenDto, AccountResponseDto } = require('../dto/accountDto');
 const { validateDto, handleValidationError } = require('../dto/validationHelper');
 const { bucket } = require('../config/firebase');
 
 exports.create = async (req, res) => {
   try {
-    const createAccountDto = new CreateAccountDto(req.body);
+    const createAccountDto = new CreateEmailAccountDto(req.body);
     validateDto(createAccountDto);
 
     const file = req.file;
