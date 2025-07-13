@@ -65,7 +65,32 @@ io.on('connection', (socket) => {
       io.to(messageData.chatID).emit('receive-message', messageData);
       console.log(`📡 Broadcasted receive-message to chat room ${messageData.chatID}`);
 
-      // Get chat participants to find receiver(s)
+      // Emit chat list update for real-time last message sync
+      const chatListUpdate = {
+        chatId: messageData.chatID,
+        lastMessage: messageData.text || '',
+        senderName: messageData.senderName || 'Unknown User',
+        timestamp: messageData.timestamp || new Date().toISOString()
+      };
+      
+      // Get chat participants to emit chat list updates to all participants
+      try {
+        const chat = await Chat.findById(messageData.chatID).populate('participants');
+        if (chat && chat.participants) {
+          // Emit to all participants for chat list updates
+          chat.participants.forEach(participant => {
+            const participantSocketId = onlineUsersManager.getSocketId(participant._id.toString());
+            if (participantSocketId) {
+              io.to(participantSocketId).emit('chat-list-update', chatListUpdate);
+            }
+          });
+          console.log(`📋 Chat list updates sent to ${chat.participants.length} participants`);
+        }
+      } catch (chatError) {
+        console.error('❌ Error fetching chat for chat list update:', chatError);
+      }
+
+      // Get chat participants to find receiver(s) for push notifications
       let receiverIds = [];
       try {
         const chat = await Chat.findById(messageData.chatID).populate('participants');
