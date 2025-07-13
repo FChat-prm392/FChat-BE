@@ -23,7 +23,15 @@ const messageSchema = new mongoose.Schema({
     enum: ['Draft', 'Send', 'Seen'],
     default: 'Send'
   },
-  media: [mediaSchema]
+  media: [mediaSchema],
+deliveredTo: [{ 
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Account' },
+    timestamp: { type: Date, default: Date.now }
+  }],
+  readBy: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Account' },
+    timestamp: { type: Date, default: Date.now }
+  }]
 }, { timestamps: { createdAt: 'createAt', updatedAt: false } });
 
 module.exports = mongoose.model('Message', messageSchema);
