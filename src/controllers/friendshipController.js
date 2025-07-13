@@ -1,28 +1,32 @@
 const { CreateFriendshipDto, UpdateFriendshipDto, FriendshipResponseDto } = require('../dto/friendshipDto');
 const { validateDto, handleValidationError } = require('../dto/validationHelper');
-const Friendship = require('../models/Friendship');
+const friendshipService = require('../services/friendshipService');
 
 exports.sendFriendRequest = async (req, res) => {
   try {
     const createFriendshipDto = new CreateFriendshipDto(req.body);
     validateDto(createFriendshipDto);
     
-    const existingFriendship = await Friendship.findOne({
-      $or: [
-        { requester: createFriendshipDto.requester, recipient: createFriendshipDto.recipient },
-        { requester: createFriendshipDto.recipient, recipient: createFriendshipDto.requester }
-      ]
-    });
+    const existingFriendship = await friendshipService.checkExistingFriendship(
+      createFriendshipDto.requester, 
+      createFriendshipDto.recipient
+    );
     
     if (existingFriendship) {
-      return res.status(400).json({ message: 'Friend request already exists' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Friend request already exists' 
+      });
     }
     
-    const friendship = new Friendship(createFriendshipDto);
-    await friendship.save();
-    
+    const friendship = await friendshipService.createFriendship(createFriendshipDto);
     const responseDto = new FriendshipResponseDto(friendship);
-    res.status(201).json(responseDto);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Friend request sent successfully',
+      data: responseDto
+    });
   } catch (err) {
     handleValidationError(err, res);
   }
@@ -33,18 +37,24 @@ exports.updateFriendRequest = async (req, res) => {
     const updateFriendshipDto = new UpdateFriendshipDto(req.body);
     validateDto(updateFriendshipDto);
     
-    const friendship = await Friendship.findByIdAndUpdate(
+    const friendship = await friendshipService.updateFriendship(
       req.params.id,
-      updateFriendshipDto,
-      { new: true }
+      updateFriendshipDto
     );
     
     if (!friendship) {
-      return res.status(404).json({ message: 'Friend request not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Friend request not found' 
+      });
     }
     
     const responseDto = new FriendshipResponseDto(friendship);
-    res.json(responseDto);
+    res.json({
+      success: true,
+      message: 'Friend request updated successfully',
+      data: responseDto
+    });
   } catch (err) {
     handleValidationError(err, res);
   }
@@ -53,13 +63,14 @@ exports.updateFriendRequest = async (req, res) => {
 exports.getFriendRequests = async (req, res) => {
   try {
     const userId = req.params.userId;
-    const friendships = await Friendship.find({
-      recipient: userId,
-      requestStatus: 'pending'
-    }).populate('requester', 'fullname username imageURL');
+    const friendships = await friendshipService.getFriendRequestsByUserId(userId);
     
     const responseDto = friendships.map(friendship => new FriendshipResponseDto(friendship));
-    res.json(responseDto);
+    res.json({
+      success: true,
+      message: 'Friend requests retrieved successfully',
+      data: responseDto
+    });
   } catch (err) {
     handleValidationError(err, res);
   }
@@ -68,16 +79,29 @@ exports.getFriendRequests = async (req, res) => {
 exports.getFriends = async (req, res) => {
   try {
     const userId = req.params.userId;
-    const friendships = await Friendship.find({
-      $or: [
-        { requester: userId },
-        { recipient: userId }
-      ],
-      requestStatus: 'accepted'
-    }).populate('requester recipient', 'fullname username imageURL');
+    const friendships = await friendshipService.getFriendsByUserId(userId);
     
     const responseDto = friendships.map(friendship => new FriendshipResponseDto(friendship));
-    res.json(responseDto);
+    res.json({
+      success: true,
+      message: 'Friends retrieved successfully',
+      data: responseDto
+    });
+  } catch (err) {
+    handleValidationError(err, res);
+  }
+};
+
+exports.getFriendList = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const friends = await friendshipService.getFriendListByUserId(userId);
+    
+    res.json({
+      success: true,
+      message: 'Friend list retrieved successfully',
+      data: friends
+    });
   } catch (err) {
     handleValidationError(err, res);
   }
@@ -85,12 +109,19 @@ exports.getFriends = async (req, res) => {
 
 exports.deleteFriendship = async (req, res) => {
   try {
-    const friendship = await Friendship.findByIdAndDelete(req.params.id);
+    const friendship = await friendshipService.deleteFriendship(req.params.id);
+    
     if (!friendship) {
-      return res.status(404).json({ message: 'Friendship not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Friendship not found' 
+      });
     }
     
-    res.json({ message: 'Friendship deleted successfully' });
+    res.json({ 
+      success: true,
+      message: 'Friendship deleted successfully' 
+    });
   } catch (err) {
     handleValidationError(err, res);
   }

@@ -48,6 +48,38 @@ async function getUserStatus(userId) {
   };
 }
 
+async function searchAccounts(searchQuery) {
+  return await Account.find({
+    $or: [
+      { fullname: { $regex: searchQuery, $options: 'i' } },
+      { username: { $regex: searchQuery, $options: 'i' } },
+      { email: { $regex: searchQuery, $options: 'i' } }
+    ],
+    status: true
+  })
+  .select('-password -fcmToken')
+  .limit(20)
+  .sort({ fullname: 1 });
+}
+
+async function getAllAccountsWithSearch(searchQuery = null) {
+  let query = { status: true };
+  
+  if (searchQuery && searchQuery.trim().length >= 2) {
+    const trimmedQuery = searchQuery.trim();
+    query.$or = [
+      { fullname: { $regex: trimmedQuery, $options: 'i' } },
+      { username: { $regex: trimmedQuery, $options: 'i' } },
+      { email: { $regex: trimmedQuery, $options: 'i' } }
+    ];
+  }
+
+  return await Account.find(query)
+    .select('-password -fcmToken')
+    .limit(searchQuery ? 20 : 100)
+    .sort({ fullname: 1 });
+}
+
 module.exports = {
   createAccount,
   getAllAccounts,
@@ -57,5 +89,7 @@ module.exports = {
   updateFcmToken,
   getAccountByEmail,
   login,
-  getUserStatus
+  getUserStatus,
+  searchAccounts,
+  getAllAccountsWithSearch
 };

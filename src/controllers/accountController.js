@@ -47,11 +47,22 @@ exports.create = async (req, res) => {
 
 exports.getAll = async (req, res) => {
   try {
-    const accounts = await accountService.getAllAccounts();
+    const { q } = req.query;
+    const accounts = await accountService.getAllAccountsWithSearch(q);
     const responseDto = accounts.map(account => new AccountResponseDto(account));
-    res.json(responseDto);
+    
+    return res.status(200).json({
+      success: true,
+      message: q ? "Search completed successfully" : "Accounts retrieved successfully",
+      data: responseDto
+    });
   } catch (err) {
-    handleValidationError(err, res);
+    console.error('Error getting accounts:', err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message
+    });
   }
 };
 
@@ -128,3 +139,34 @@ exports.getUserStatus = async (req, res) => {
     handleValidationError(err, res);
   }
 };
+
+exports.search = async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: "Search query must be at least 2 characters long"
+      });
+    }
+
+    const searchQuery = q.trim();
+    const accounts = await accountService.searchAccounts(searchQuery);
+    const responseDto = accounts.map(account => new AccountResponseDto(account));
+
+    return res.status(200).json({
+      success: true,
+      message: "Search completed successfully",
+      data: responseDto
+    });
+  } catch (error) {
+    console.error('Error searching accounts:', error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message
+    });
+  }
+};
+

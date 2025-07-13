@@ -51,8 +51,21 @@ class FriendshipResponseDto {
   }
 }
 
+class FriendListResponseDto {
+  constructor(user) {
+    this.id = user._id || user.id;
+    this.fullname = user.fullname;
+    this.username = user.username;
+    this.email = user.email;
+    this.imageURL = user.imageURL;
+    this.currentStatus = user.currentStatus;
+    this.lastOnline = user.lastOnline;
+  }
+}
+
 module.exports = {
   CreateFriendshipDto,
   UpdateFriendshipDto,
-  FriendshipResponseDto
+  FriendshipResponseDto,
+  FriendListResponseDto
 };

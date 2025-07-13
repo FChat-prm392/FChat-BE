@@ -82,13 +82,38 @@ router.post('/', upload.single('image'), accountController.create);
  * @swagger
  * /api/accounts:
  *   get:
- *     summary: Get all accounts
+ *     summary: Get all accounts (with optional search)
  *     tags: [Accounts]
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         description: Search query for fullname, username, or email
  *     responses:
  *       200:
  *         description: List of accounts
  */
 router.get('/', accountController.getAll);
+
+/**
+ * @swagger
+ * /api/accounts/search:
+ *   get:
+ *     summary: Search accounts by name, username, or email
+ *     tags: [Accounts]
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Search query
+ *     responses:
+ *       200:
+ *         description: List of matching accounts
+ */
+router.get('/search', accountController.search);
 
 /**
  * @swagger
@@ -131,6 +156,9 @@ router.post('/login', accountController.login);
  *         description: User status
  */
 router.get('/status/:userId', accountController.getUserStatus);
+
+// ⚠️ IMPORTANT: Put parameterized routes (:id) AFTER all specific routes
+// This prevents "search" from being interpreted as an ID parameter
 
 /**
  * @swagger
