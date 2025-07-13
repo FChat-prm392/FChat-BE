@@ -22,7 +22,6 @@ const io = new Server(server, {
 app.use(express.json());
 setupSwagger(app);
 
-// Routes
 const accountRoutes = require('./src/routes/accountRoutes');
 const chatRoutes = require('./src/routes/chatRoutes');
 const messageRoutes = require('./src/routes/messageRoutes');

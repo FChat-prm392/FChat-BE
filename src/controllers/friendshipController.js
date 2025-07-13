@@ -7,7 +7,6 @@ exports.sendFriendRequest = async (req, res) => {
     const createFriendshipDto = new CreateFriendshipDto(req.body);
     validateDto(createFriendshipDto);
     
-    // Check if friendship already exists
     const existingFriendship = await Friendship.findOne({
       $or: [
         { requester: createFriendshipDto.requester, recipient: createFriendshipDto.recipient },

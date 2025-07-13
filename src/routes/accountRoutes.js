@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const accountController = require('../controllers/accountController');
-const upload = require('../middleware/upload');
 
 /**
  * @swagger
@@ -18,7 +17,6 @@ const upload = require('../middleware/upload');
  *           type: string
  *         email:
  *           type: string
- *           format: email
  *         gender:
  *           type: string
  *         phoneNumber:
@@ -29,158 +27,23 @@ const upload = require('../middleware/upload');
  *           type: string
  *         status:
  *           type: boolean
- *         lastOnline:
- *           type: string
- *           format: date-time
  *         createdAt:
  *           type: string
- *           format: date-time
  *         updatedAt:
  *           type: string
- *           format: date-time
- *     CreateAccount:
- *       type: object
- *       required:
- *         - fullname
- *         - username
- *         - email
- *         - password
- *       properties:
- *         fullname:
- *           type: string
- *         username:
- *           type: string
- *         email:
- *           type: string
- *           format: email
- *         password:
- *           type: string
- *         fcmToken:
- *           type: string
- *         gender:
- *           type: string
- *         phoneNumber:
- *           type: string
- *         currentStatus:
- *           type: string
- *     UpdateAccount:
- *       type: object
- *       properties:
- *         fullname:
- *           type: string
- *         username:
- *           type: string
- *         email:
- *           type: string
- *           format: email
- *         gender:
- *           type: string
- *         phoneNumber:
- *           type: string
- *         imageURL:
- *           type: string
- *         currentStatus:
- *           type: string
- *         status:
- *           type: boolean
- *         lastOnline:
- *           type: string
- *           format: date-time
- *     UpdateFcmToken:
- *       type: object
- *       required:
- *         - userId
- *         - fcmToken
- *       properties:
- *         userId:
- *           type: string
- *         fcmToken:
- *           type: string
- *     LoginRequest:
- *       type: object
- *       required:
- *         - email
- *         - password
- *       properties:
- *         email:
- *           type: string
- *           format: email
- *         password:
- *           type: string
- *     LoginResponse:
- *       type: object
- *       properties:
- *         token:
- *           type: string
- *         user:
- *           $ref: '#/components/schemas/Account'
- *     ValidationError:
- *       type: object
- *       properties:
- *         message:
- *           type: string
- *         errors:
- *           type: array
- *           items:
- *             type: string
  */
 
 /**
  * @swagger
  * /api/accounts:
  *   post:
- *     summary: Create a new account (with optional avatar image)
+ *     summary: Create account
  *     tags: [Accounts]
- *     consumes:
- *       - multipart/form-data
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - fullname
- *               - username
- *               - email
- *               - password
- *             properties:
- *               fullname:
- *                 type: string
- *               username:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *               fcmToken:
- *                 type: string
- *               gender:
- *                 type: string
- *               phoneNumber:
- *                 type: string
- *               currentStatus:
- *                 type: string
- *               image:
- *                 type: string
- *                 format: binary
  *     responses:
  *       201:
- *         description: Account created successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Account'
- *       400:
- *         description: Validation error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ValidationError'
- *       500:
- *         description: Internal server error
+ *         description: Account created
  */
-router.post('/', upload.single('image'), accountController.create);
+router.post('/', accountController.create);
 
 /**
  * @swagger
@@ -190,17 +53,51 @@ router.post('/', upload.single('image'), accountController.create);
  *     tags: [Accounts]
  *     responses:
  *       200:
- *         description: List of all accounts
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Account'
- *       500:
- *         description: Internal server error
+ *         description: List of accounts
  */
 router.get('/', accountController.getAll);
+
+/**
+ * @swagger
+ * /api/accounts/update-fcm-token:
+ *   patch:
+ *     summary: Update FCM token
+ *     tags: [Accounts]
+ *     responses:
+ *       200:
+ *         description: FCM token updated
+ */
+router.patch('/update-fcm-token', accountController.updateFcmToken);
+
+/**
+ * @swagger
+ * /api/accounts/login:
+ *   post:
+ *     summary: Login
+ *     tags: [Accounts]
+ *     responses:
+ *       200:
+ *         description: Login successful
+ */
+router.post('/login', accountController.login);
+
+/**
+ * @swagger
+ * /api/accounts/status/{userId}:
+ *   get:
+ *     summary: Get user status
+ *     tags: [Accounts]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User status
+ */
+router.get('/status/:userId', accountController.getUserStatus);
 
 /**
  * @swagger
@@ -217,14 +114,6 @@ router.get('/', accountController.getAll);
  *     responses:
  *       200:
  *         description: Account found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Account'
- *       404:
- *         description: Account not found
- *       500:
- *         description: Internal server error
  */
 router.get('/:id', accountController.getById);
 
@@ -232,7 +121,7 @@ router.get('/:id', accountController.getById);
  * @swagger
  * /api/accounts/{id}:
  *   put:
- *     summary: Update account by ID
+ *     summary: Update account
  *     tags: [Accounts]
  *     parameters:
  *       - in: path
@@ -240,29 +129,9 @@ router.get('/:id', accountController.getById);
  *         required: true
  *         schema:
  *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/UpdateAccount'
  *     responses:
  *       200:
- *         description: Account updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Account'
- *       400:
- *         description: Validation error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ValidationError'
- *       404:
- *         description: Account not found
- *       500:
- *         description: Internal server error
+ *         description: Account updated
  */
 router.put('/:id', accountController.update);
 
@@ -270,7 +139,7 @@ router.put('/:id', accountController.update);
  * @swagger
  * /api/accounts/{id}:
  *   delete:
- *     summary: Delete account by ID
+ *     summary: Delete account
  *     tags: [Accounts]
  *     parameters:
  *       - in: path
@@ -280,121 +149,8 @@ router.put('/:id', accountController.update);
  *           type: string
  *     responses:
  *       200:
- *         description: Account deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Deleted successfully"
- *       404:
- *         description: Account not found
- *       500:
- *         description: Internal server error
+ *         description: Account deleted
  */
 router.delete('/:id', accountController.remove);
-
-/**
- * @swagger
- * /api/accounts/update-fcm-token:
- *   patch:
- *     summary: Update FCM token for a user
- *     tags: [Accounts]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/UpdateFcmToken'
- *     responses:
- *       200:
- *         description: FCM token updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *       400:
- *         description: Validation error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ValidationError'
- *       404:
- *         description: User not found
- *       500:
- *         description: Internal server error
- */
-router.patch('/update-fcm-token', accountController.updateFcmToken);
-
-/**
- * @swagger
- * /api/accounts/login:
- *   post:
- *     summary: Login with email and password
- *     tags: [Accounts]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/LoginRequest'
- *     responses:
- *       200:
- *         description: Login successful
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/LoginResponse'
- *       400:
- *         description: Missing email or password
- *       401:
- *         description: Invalid credentials
- *       500:
- *         description: Internal server error
- */
-router.post('/login', accountController.login);
-
-
-/**
- * @swagger
- * /api/accounts/status/{id}:
- *   get:
- *     summary: Get user online status
- *     tags: [Accounts]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID to check status
- *     responses:
- *       200:
- *         description: User status retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 userId:
- *                   type: string
- *                   description: The user ID
- *                 isOnline:
- *                   type: boolean
- *                   description: Whether the user is currently online
- *               example:
- *                 userId: "64f5a8b12345678901234567"
- *                 isOnline: true
- *       500:
- *         description: Internal server error
- */
-router.get('/status/:userId', accountController.getUserStatus);
-
-
 
 module.exports = router;

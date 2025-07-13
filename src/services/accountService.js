@@ -1,5 +1,5 @@
 const Account = require('../models/Account');
-const onlineUsersManager = require('../utils/onlineUsers'); 
+const onlineUsersManager = require('../utils/onlineUsers');
 
 async function createAccount(data) {
   return await Account.create(data);
@@ -40,10 +40,13 @@ async function login(email, password) {
 
 async function getUserStatus(userId) {
   const isOnline = onlineUsersManager.has(userId);
-   const account = await Account.findById(userId, 'lastOnline');
-  return { userId, isOnline, lastOnline: account ? account.lastOnline : null };
+  const account = await Account.findById(userId, 'lastOnline');
+  return { 
+    userId, 
+    isOnline, 
+    lastOnline: account ? account.lastOnline : null 
+  };
 }
-
 
 module.exports = {
   createAccount,

@@ -3,12 +3,14 @@ const onlineUsers = new Map();
 module.exports = {
   add: (userId, socketId) => {
     onlineUsers.set(userId, socketId);
-    console.log(`Added user ${userId} with socket ${socketId}. Total online: ${onlineUsers.size}`);
+    console.log(`👤 User ${userId} is now online`);
   },
   
   remove: (userId) => {
     const removed = onlineUsers.delete(userId);
-    console.log(`Removed user ${userId}. Success: ${removed}. Total online: ${onlineUsers.size}`);
+    if (removed) {
+      console.log(`👤 User ${userId} is now offline`);
+    }
     return removed;
   },
   
@@ -24,7 +26,7 @@ module.exports = {
     for (const [userId, id] of onlineUsers.entries()) {
       if (id === socketId) {
         onlineUsers.delete(userId);
-        console.log(`Removed user ${userId} by socket ${socketId}. Total online: ${onlineUsers.size}`);
+        console.log(`👤 User ${userId} disconnected via socket ${socketId}`);
         return userId;
       }
     }
@@ -35,12 +37,7 @@ module.exports = {
     return new Map(onlineUsers);
   },
   
-  clear: () => {
-    onlineUsers.clear();
-    console.log('Cleared all online users');
-  },
-  
-  size: () => {
+  getOnlineCount: () => {
     return onlineUsers.size;
   }
 };
