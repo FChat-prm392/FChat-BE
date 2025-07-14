@@ -82,10 +82,28 @@ exports.update = async (req, res) => {
   try {
     const updateAccountDto = new UpdateAccountDto(req.body);
     validateDto(updateAccountDto);
-    
+
+    const file = req.file;
+
+    if (file) {
+      const blob = bucket.file(`avatars/${Date.now()}_${file.originalname}`);
+      const blobStream = blob.createWriteStream({
+        metadata: { contentType: file.mimetype }
+      });
+
+      await new Promise((resolve, reject) => {
+        blobStream.on('error', reject);
+        blobStream.on('finish', resolve);
+        blobStream.end(file.buffer);
+      });
+
+      const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+      updateAccountDto.imageURL = publicUrl;
+    }
+
     const account = await accountService.updateAccount(req.params.id, updateAccountDto);
-    if (!account) return res.status(404).json({ message: "Account not found" });
-    
+    if (!account) return res.status(404).json({ message: "Not found" });
+
     const responseDto = new AccountResponseDto(account);
     res.json(responseDto);
   } catch (err) {

@@ -182,19 +182,55 @@ router.get('/:id', accountController.getById);
  * @swagger
  * /api/accounts/{id}:
  *   put:
- *     summary: Update account
+ *     summary: Update account (with optional image)
  *     tags: [Accounts]
+ *     consumes:
+ *       - multipart/form-data
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID of the account to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullname:
+ *                 type: string
+ *               username:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               gender:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *               currentStatus:
+ *                 type: string
+ *               status:
+ *                 type: boolean
+ *               lastOnline:
+ *                 type: string
+ *               image:
+ *                 type: string
+ *                 format: binary
  *     responses:
  *       200:
- *         description: Account updated
+ *         description: Account updated successfully
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Account not found
+ *       500:
+ *         description: Internal server error
  */
-router.put('/:id', accountController.update);
+router.put('/:id', upload.single('image'), accountController.update);
+
 
 /**
  * @swagger
