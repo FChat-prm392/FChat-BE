@@ -5,7 +5,7 @@ const { Server } = require('socket.io');
 const { connectDb } = require('./src/config/db');
 const { sendPushNotification } = require('./src/utils/fcmService');
 const Account = require('./src/models/Account');
-const Chat = require('./src/models/Chat'); // Add this to get chat participants
+const Chat = require('./src/models/Chat');
 const setupSwagger = require('./src/config/swagger');
 const onlineUsersManager = require('./src/utils/onlineUsers');
 
@@ -38,7 +38,6 @@ app.use('/api/messages', messageRoutes);
 app.use('/api', messageReactionRoutes);
 app.use('/api/friendships', friendshipRoutes);
 
-// Add route to get chat participants for calling functionality
 app.get('/api/chats/:chatId/participants', async (req, res) => {
   try {
     const { chatId } = req.params;
@@ -63,20 +62,15 @@ app.get('/api/chats/:chatId/participants', async (req, res) => {
 });
 
 io.on('connection', (socket) => {
-  console.log(` Socket connected: ${socket.id}`);
-
   socket.on('register-user', async (userId) => {
-    console.log(` Registering user: ${userId} with socket: ${socket.id}`);
     const existingSocketId = onlineUsersManager.getSocketId(userId);
     if (existingSocketId && existingSocketId !== socket.id) {
-      console.log(`🔄 Removing old socket ${existingSocketId} for user ${userId}`);
       onlineUsersManager.remove(userId);
     }
 
     onlineUsersManager.add(userId, socket.id);
     io.emit('user-status', { userId, isOnline: true, lastOnline: null });
     
-    // Auto-join all user's chat rooms when they connect
     try {
       const userChats = await Chat.find({
         participants: userId
@@ -84,37 +78,24 @@ io.on('connection', (socket) => {
       
       for (const chat of userChats) {
         socket.join(chat._id.toString());
-        console.log(` Auto-joined user ${userId} to chat room ${chat._id}`);
       }
-      
-      console.log(` User ${userId} registered and joined ${userChats.length} chat rooms`);
     } catch (error) {
       console.error(`❌ Error auto-joining chat rooms for user ${userId}:`, error);
-      console.log(` User ${userId} registered (without auto-join due to error)`);
     }
   });
 
   socket.on('join-room', (chatId) => {
-    console.log(` Socket ${socket.id} manually joining room: ${chatId}`);
     socket.join(chatId);
   });
 
-  // Handle when user joins a new chat (so they get added to the room)
   socket.on('user-joined-chat', (data) => {
-    console.log(`🆕 User ${data.userId} joined new chat ${data.chatId}`);
     socket.join(data.chatId);
-    console.log(` Added user to chat room ${data.chatId}`);
   });
 
   socket.on('send-message', async (messageData) => {
     try {
-      console.log(`📤 Sending message to room ${messageData.chatID}`);
-      
-      // First emit the message to all users in the chat room
       io.to(messageData.chatID).emit('receive-message', messageData);
-      console.log(`📡 Broadcasted receive-message to chat room ${messageData.chatID}`);
 
-      // Emit chat list update for real-time last message sync
       const chatListUpdate = {
         chatId: messageData.chatID,
         lastMessage: messageData.text || '',
@@ -122,42 +103,35 @@ io.on('connection', (socket) => {
         timestamp: messageData.timestamp || new Date().toISOString()
       };
       
-      // Get chat participants to emit chat list updates to all participants
       try {
         const chat = await Chat.findById(messageData.chatID).populate('participants');
         if (chat && chat.participants) {
-          // Emit to all participants for chat list updates
           chat.participants.forEach(participant => {
             const participantSocketId = onlineUsersManager.getSocketId(participant._id.toString());
             if (participantSocketId) {
               io.to(participantSocketId).emit('chat-list-update', chatListUpdate);
             }
           });
-          console.log(`📋 Chat list updates sent to ${chat.participants.length} participants`);
         }
       } catch (chatError) {
         console.error('❌ Error fetching chat for chat list update:', chatError);
       }
 
-      // Get chat participants to find receiver(s) for push notifications
       let receiverIds = [];
       try {
         const chat = await Chat.findById(messageData.chatID).populate('participants');
         if (chat && chat.participants) {
           receiverIds = chat.participants
             .map(p => p._id.toString())
-            .filter(id => id !== messageData.senderID); // Exclude sender
-          console.log(`📋 Found ${receiverIds.length} receivers for notifications`);
+            .filter(id => id !== messageData.senderID);
         }
       } catch (chatError) {
         console.error('❌ Error fetching chat participants:', chatError);
-        // Fallback to receiverID if provided
         if (messageData.receiverID && messageData.receiverID.trim() !== '') {
           receiverIds = [messageData.receiverID];
         }
       }
 
-      // Send push notifications to offline receivers
       for (const receiverId of receiverIds) {
         const isOnline = onlineUsersManager.has(receiverId);
 
@@ -165,7 +139,6 @@ io.on('connection', (socket) => {
           try {
             const receiver = await Account.findById(receiverId);
             if (receiver?.fcmToken) {
-              console.log(`📲 Sending FCM to ${receiverId}`);
               await sendPushNotification(
                 receiver.fcmToken,
                 `New message from ${messageData.senderName}`,
@@ -186,14 +159,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Add these handlers after your existing socket event handlers (around line 250)
 
-// Reaction handling events
 socket.on('reaction-added', async (data) => {
-  console.log(`😊 Reaction added: ${data.userId} reacted with ${data.emoji} to message ${data.messageId} in chat ${data.chatId}`);
-  
   try {
-    // Broadcast the reaction to all other users in the chat room (excluding sender)
     socket.to(data.chatId).emit('reaction-added', {
       messageId: data.messageId,
       userId: data.userId,
@@ -202,7 +170,6 @@ socket.on('reaction-added', async (data) => {
       timestamp: data.timestamp
     });
     
-    console.log(`📡 Reaction-added broadcasted to chat room ${data.chatId}`);
     try {
       const chat = await Chat.findById(data.chatId).populate('participants');
       if (chat && chat.participants) {
@@ -227,15 +194,12 @@ socket.on('reaction-added', async (data) => {
     } catch (fcmError) {
       console.error('❌ Error sending FCM for reaction:', fcmError);
     }
-    
   } catch (error) {
     console.error('❌ Error handling reaction-added:', error);
   }
 });
 
 socket.on('reaction-removed', async (data) => {
-  console.log(`😔 Reaction removed: ${data.userId} removed ${data.emoji} from message ${data.messageId} in chat ${data.chatId}`);
-  
   try {
     socket.to(data.chatId).emit('reaction-removed', {
       messageId: data.messageId,
@@ -244,37 +208,26 @@ socket.on('reaction-removed', async (data) => {
       emoji: data.emoji,
       timestamp: data.timestamp
     });
-    
-    console.log(`📡 Reaction-removed broadcasted to chat room ${data.chatId}`);
-    
   } catch (error) {
     console.error('❌ Error handling reaction-removed:', error);
   }
 });
 
   socket.on('message-sent', (data) => {
-    console.log(`📤 Message sent - ID: ${data.messageId}, Chat: ${data.chatId}, Sender: ${data.senderId}`);
-    
-    // Emit sent status to sender
     socket.emit('message-status-update', {
       messageId: data.messageId,
       status: 'sent',
       timestamp: new Date()
     });
     
-    // Emit delivered status to others in the chat room
     socket.to(data.chatId).emit('message-status-update', {
       messageId: data.messageId,
       status: 'delivered',
       timestamp: new Date()
     });
-    
-    console.log(` Status updates sent for message ${data.messageId}`);
   });
 
-  // Enhanced sync-message-status with better filtering and chat context
   socket.on('sync-message-status', async (data) => {
-    console.log(`🔄 Syncing message status for user: ${data.userId}, chat: ${data.chatId || 'all'}`);
     
     try {
       let query = {
@@ -285,17 +238,13 @@ socket.on('reaction-removed', async (data) => {
         ]
       };
 
-      // If chatId is provided, filter by specific chat
       if (data.chatId) {
         query.chatID = data.chatId;
-        console.log(`🎯 Filtering sync for specific chat: ${data.chatId}`);
       }
 
       const messages = await Message.find(query)
         .sort({ createAt: -1 })
         .limit(50);
-      
-      console.log(`📊 Found ${messages.length} messages to sync for user ${data.userId}`);
       
       let syncCount = 0;
       for (const message of messages) {
@@ -305,11 +254,9 @@ socket.on('reaction-removed', async (data) => {
         if (message.readBy && message.readBy.length > 0) {
           latestStatus = 'read';
           latestTimestamp = message.readBy[message.readBy.length - 1].timestamp;
-          console.log(`📖 Message ${message._id} marked as read`);
         } else if (message.deliveredTo && message.deliveredTo.length > 0) {
           latestStatus = 'delivered';
           latestTimestamp = message.deliveredTo[message.deliveredTo.length - 1].timestamp;
-          console.log(`📬 Message ${message._id} marked as delivered`);
         }
         
         socket.emit('message-status-update', {
@@ -321,15 +268,11 @@ socket.on('reaction-removed', async (data) => {
         syncCount++;
       }
       
-      // Send sync completion notification
       socket.emit('status-sync-complete', {
         count: syncCount,
         userId: data.userId,
         chatId: data.chatId || null
       });
-      
-      console.log(` Sync complete - ${syncCount} messages synced for user ${data.userId}`);
-      
     } catch (error) {
       console.error('❌ Error syncing message status:', error);
       socket.emit('sync-error', {
@@ -339,9 +282,21 @@ socket.on('reaction-removed', async (data) => {
     }
   });
 
-  // Enhanced message-delivered with better logging
+  socket.on('voice-data', (data) => {
+    try {
+        const { audioData, chatId, userId, timestamp } = data;
+        
+        socket.to(chatId).emit('voice-data', {
+            audioData: audioData,
+            userId: userId,
+            timestamp: timestamp
+        });
+    } catch (error) {
+        console.error('Error handling voice data:', error);
+    }
+});
+
   socket.on('message-delivered', async (data) => {
-    console.log(`📬 Message delivered - ID: ${data.messageId}, User: ${data.userId}, Chat: ${data.chatId}`);
     
     try {
       const result = await Message.findByIdAndUpdate(
@@ -358,28 +313,19 @@ socket.on('reaction-removed', async (data) => {
       );
       
       if (result) {
-        console.log(` Delivered status saved for message ${data.messageId}`);
-        
-        // Emit to all users in the chat
         io.to(data.chatId).emit('message-status-update', {
           messageId: data.messageId,
           status: 'delivered',
           userId: data.userId,
           timestamp: new Date()
         });
-        
-        console.log(`📡 Delivered status broadcasted to chat ${data.chatId}`);
-      } else {
-        console.log(`⚠️ Message ${data.messageId} not found for delivered update`);
       }
     } catch (error) {
       console.error('❌ Error updating delivered status:', error);
     }
   });
 
-  // Enhanced message-read with better logging and broadcasting
   socket.on('message-read', async (data) => {
-    console.log(`📖 Message read - ID: ${data.messageId}, User: ${data.userId}, Chat: ${data.chatId}`);
     
     try {
       const result = await Message.findByIdAndUpdate(
@@ -396,9 +342,6 @@ socket.on('reaction-removed', async (data) => {
       );
       
       if (result) {
-        console.log(` Read status saved for message ${data.messageId}`);
-        
-        // Emit to all users in the chat (especially the sender)
         io.to(data.chatId).emit('message-status-update', {
           messageId: data.messageId,
           status: 'read',
@@ -406,9 +349,6 @@ socket.on('reaction-removed', async (data) => {
           timestamp: new Date()
         });
         
-        console.log(`📡 Read status broadcasted to chat ${data.chatId}`);
-        
-        // Also emit specifically to the message sender if they're online
         const message = await Message.findById(data.messageId).populate('senderID');
         if (message && message.senderID) {
           const senderSocketId = onlineUsersManager.getSocketId(message.senderID._id.toString());
@@ -419,11 +359,8 @@ socket.on('reaction-removed', async (data) => {
               userId: data.userId,
               timestamp: new Date()
             });
-            console.log(`📡 Read status sent directly to sender ${message.senderID._id}`);
           }
         }
-      } else {
-        console.log(`⚠️ Message ${data.messageId} not found for read update`);
       }
     } catch (error) {
       console.error('❌ Error updating read status:', error);
@@ -431,45 +368,32 @@ socket.on('reaction-removed', async (data) => {
   });
 
   socket.on('typing-start', (data) => {
-    console.log(`⌨️ User ${data.userName} started typing in chat ${data.chatId}`);
-    
-    // Emit to all users in the chat room (works for both ChatDetailActivity and ChatListActivity)
     socket.to(data.chatId).emit('user-typing', {
       userId: data.userId,
       userName: data.userName,
       isTyping: true
     });
     
-    // Also emit typing-start specifically for chat list updates
     socket.to(data.chatId).emit('typing-start', {
       chatId: data.chatId,
       userId: data.userId,
       userName: data.userName
     });
-    
-    console.log(`📡 Typing start broadcasted to chat room ${data.chatId}`);
   });
 
   socket.on('typing-stop', (data) => {
-    console.log(`⌨️ User ${data.userId} stopped typing in chat ${data.chatId}`);
-    
-    // Emit to all users in the chat room (works for both ChatDetailActivity and ChatListActivity)
     socket.to(data.chatId).emit('user-typing', {
       userId: data.userId,
       isTyping: false
     });
     
-    // Also emit typing-stop specifically for chat list updates
     socket.to(data.chatId).emit('typing-stop', {
       chatId: data.chatId,
       userId: data.userId
     });
-    
-    console.log(`📡 Typing stop broadcasted to chat room ${data.chatId}`);
   });
 
   socket.on('user-entered-chat', (data) => {
-    console.log(` user-entered-chat: ${data.userId} entered chat ${data.chatId}`);
     socket.to(data.chatId).emit('user-chat-presence', {
       userId: data.userId,
       isInChat: true
@@ -477,7 +401,6 @@ socket.on('reaction-removed', async (data) => {
   });
 
   socket.on('user-left-chat', (data) => {
-    console.log(` user-left-chat: ${data.userId} left chat ${data.chatId}`);
     socket.to(data.chatId).emit('user-chat-presence', {
       userId: data.userId,
       isInChat: false
@@ -488,11 +411,7 @@ socket.on('reaction-removed', async (data) => {
     socket.to(chatID).emit('typing', { sender });
   });
 
-  // Call handling events
   socket.on('call-initiate', (data) => {
-    console.log(`📞 Call initiated: ${data.callerId} calling ${data.receiverId} in chat ${data.chatId}`);
-    
-    // Find receiver's socket and notify them of incoming call
     const receiverSocketId = onlineUsersManager.getSocketId(data.receiverId);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit('incoming-call', {
@@ -503,20 +422,9 @@ socket.on('reaction-removed', async (data) => {
         isVideoCall: data.isVideoCall,
         timestamp: data.timestamp
       });
-      console.log(`📲 Incoming call notification sent to ${data.receiverId}`);
     } else {
-      // Receiver socket not found - this could be due to:
-      // 1. User is offline
-      // 2. Socket temporarily disconnected
-      // 3. User on different device/app instance
-      console.log(`📵 Receiver ${data.receiverId} socket not found in onlineUsers map`);
-      console.log(`🔍 Current online users: ${Array.from(onlineUsersManager.getAll().keys()).join(', ')}`);
-      
-      // Instead of immediately failing, let's try to broadcast to all sockets for this user
-      // or wait a bit for the receiver to potentially reconnect
       let callAttempted = false;
       
-      // Broadcast to all connected sockets to try to reach the user
       io.sockets.sockets.forEach((clientSocket) => {
         if (clientSocket.userId === data.receiverId) {
           clientSocket.emit('incoming-call', {
@@ -527,14 +435,11 @@ socket.on('reaction-removed', async (data) => {
             isVideoCall: data.isVideoCall,
             timestamp: data.timestamp
           });
-          console.log(`� Incoming call sent to ${data.receiverId} via fallback broadcast`);
           callAttempted = true;
         }
       });
       
       if (!callAttempted) {
-        // Only fail after trying alternative methods
-        console.log(`❌ Could not reach receiver ${data.receiverId} - truly offline`);
         socket.emit('call-failed', {
           reason: 'Receiver is offline',
           callId: data.callId
@@ -544,9 +449,6 @@ socket.on('reaction-removed', async (data) => {
   });
 
   socket.on('call-answer', (data) => {
-    console.log(` Call answered: ${data.callId}`);
-    
-    // Notify caller that call was answered
     const callerSocketId = onlineUsersManager.getSocketId(data.callerId);
     if (callerSocketId) {
       io.to(callerSocketId).emit('call-answered', {
@@ -557,9 +459,6 @@ socket.on('reaction-removed', async (data) => {
   });
 
   socket.on('call-decline', (data) => {
-    console.log(`❌ Call declined: ${data.callId}`);
-    
-    // Notify caller that call was declined
     const callerSocketId = onlineUsersManager.getSocketId(data.callerId);
     if (callerSocketId) {
       io.to(callerSocketId).emit('call-declined', {
@@ -570,9 +469,6 @@ socket.on('reaction-removed', async (data) => {
   });
 
   socket.on('call-end', (data) => {
-    console.log(`📞 Call ended: ${data.callId}`);
-    
-    // Notify both participants that call ended
     const callerSocketId = onlineUsersManager.getSocketId(data.callerId);
     const receiverSocketId = onlineUsersManager.getSocketId(data.receiverId);
     
@@ -590,9 +486,6 @@ socket.on('reaction-removed', async (data) => {
   });
 
   socket.on('call-mute', (data) => {
-    console.log(`🔇 Call mute toggled: ${data.callId}, muted: ${data.isMuted}`);
-    
-    // Notify other participant about mute status
     const otherParticipantId = data.participantId;
     const otherSocketId = onlineUsersManager.getSocketId(otherParticipantId);
     
@@ -606,9 +499,6 @@ socket.on('reaction-removed', async (data) => {
   });
 
   socket.on('call-video-toggle', (data) => {
-    console.log(`📹 Video toggled: ${data.callId}, video: ${data.isVideoOn}`);
-    
-    // Notify other participant about video status
     const otherParticipantId = data.participantId;
     const otherSocketId = onlineUsersManager.getSocketId(otherParticipantId);
     
@@ -622,7 +512,6 @@ socket.on('reaction-removed', async (data) => {
   });
 
   socket.on('disconnect', async () => {
-    console.log(` Socket disconnected: ${socket.id}`);
     const userId = onlineUsersManager.removeBySocketId(socket.id);
     if (userId) {
       try {
@@ -636,7 +525,6 @@ socket.on('reaction-removed', async (data) => {
           isOnline: false,
           lastOnline: updatedAccount.lastOnline
         });
-        console.log(` User ${userId} marked offline`);
       } catch (err) {
         console.error(`❌ Error updating lastOnline for user ${userId}:`, err);
       }
@@ -644,7 +532,6 @@ socket.on('reaction-removed', async (data) => {
   });
 
   socket.on('user-logout', async (userId) => {
-    console.log(`👋 User logout: ${userId}`);
     onlineUsersManager.remove(userId);
 
     try {
@@ -658,7 +545,6 @@ socket.on('reaction-removed', async (data) => {
         isOnline: false,
         lastOnline: updatedAccount.lastOnline
       });
-      console.log(` User ${userId} logged out and marked offline`);
     } catch (err) {
       console.error(`❌ Error updating lastOnline for user ${userId}:`, err);
     }
