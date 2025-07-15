@@ -511,6 +511,21 @@ socket.on('reaction-removed', async (data) => {
     }
   });
 
+  socket.on('video-data', (data) => {
+    try {
+        const { videoData, chatId, userId, timestamp } = data;
+        
+        socket.to(chatId).emit('video-data', {
+            videoData: videoData,
+            userId: userId,
+            timestamp: timestamp
+        });
+        
+    } catch (error) {
+        console.error('Error handling video data:', error);
+    }
+});
+
   socket.on('disconnect', async () => {
     const userId = onlineUsersManager.removeBySocketId(socket.id);
     if (userId) {
@@ -563,6 +578,3 @@ connectDb()
   .catch((err) => {
     console.error('❌ Error starting server:', err);
   });
-
-
-module.exports = { onlineUsers: onlineUsersManager };
