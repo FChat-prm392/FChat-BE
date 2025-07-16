@@ -98,6 +98,7 @@ class AccountResponseDto {
     this.lastOnline = account.lastOnline;
     this.createdAt = account.createdAt;
     this.updatedAt = account.updatedAt;
+    this.friendshipStatus = account.friendshipStatus || 'NONE';
   }
 }
 

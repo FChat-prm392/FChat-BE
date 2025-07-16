@@ -2,6 +2,7 @@ const accountService = require('../services/accountService');
 const { CreateEmailAccountDto, UpdateAccountDto, UpdateFcmTokenDto, AccountResponseDto } = require('../dto/accountDto');
 const { validateDto, handleValidationError } = require('../dto/validationHelper');
 const { bucket } = require('../config/firebase');
+const mongoose = require('mongoose');
 
 exports.create = async (req, res) => {
   try {
@@ -188,3 +189,43 @@ exports.search = async (req, res) => {
   }
 };
 
+exports.getNonFriends = async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "userId query parameter is required",
+      });
+    }
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid userId format",
+      });
+    }
+
+    const accounts = await accountService.getNonFriends(userId);
+    const responseDto = accounts.map(account => {
+      try {
+        return new AccountResponseDto(account);
+      } catch (dtoError) {
+        console.error(`Error creating AccountResponseDto for account ${account._id}:`, dtoError);
+        throw new Error('Failed to format account data');
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Non-friends retrieved successfully",
+      data: responseDto
+    });
+  } catch (err) {
+    console.error('Error getting non-friends:', err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message
+    });
+  }
+};

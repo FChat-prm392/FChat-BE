@@ -96,6 +96,43 @@ router.post('/', upload.single('image'), accountController.create);
  */
 router.get('/', accountController.getAll);
 
+
+/**
+ * @swagger
+ * /api/accounts/non-friends:
+ *   get:
+ *     summary: Get non-friend accounts for a user
+ *     tags: [Accounts]
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the current user
+ *     responses:
+ *       200:
+ *         description: List of non-friend accounts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Account'
+ *       400:
+ *         description: userId is required or invalid
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/non-friends', accountController.getNonFriends);
+
 /**
  * @swagger
  * /api/accounts/search:
@@ -104,7 +141,7 @@ router.get('/', accountController.getAll);
  *     tags: [Accounts]
  *     parameters:
  *       - in: query
- *         name: q
+ *         name: search
  *         required: true
  *         schema:
  *           type: string
@@ -249,5 +286,8 @@ router.put('/:id', upload.single('image'), accountController.update);
  *         description: Account deleted
  */
 router.delete('/:id', accountController.remove);
+
+
+
 
 module.exports = router;
