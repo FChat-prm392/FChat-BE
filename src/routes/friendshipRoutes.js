@@ -4,15 +4,40 @@ const friendshipController = require('../controllers/friendshipController');
 
 /**
  * @swagger
+ * tags:
+ *   - name: Friendships
+ *     description: API for managing friendships
+ */
+
+/**
+ * @swagger
  * /api/friendships:
  *   post:
- *     summary: Send friend request
+ *     summary: Send a friend request
  *     tags: [Friendships]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - requester
+ *               - recipient
+ *               - requestStatus
+ *             properties:
+ *               requester:
+ *                 type: string
+ *               recipient:
+ *                 type: string
+ *               requestStatus:
+ *                 type: string
+ *                 enum: [pending, accepted, blocked, rejected]
  *     responses:
  *       201:
  *         description: Friend request sent successfully
  *       400:
- *         description: Friend request already exists
+ *         description: Validation error or already exists
  */
 router.post('/', friendshipController.sendFriendRequest);
 
@@ -20,7 +45,7 @@ router.post('/', friendshipController.sendFriendRequest);
  * @swagger
  * /api/friendships/{id}:
  *   put:
- *     summary: Update friend request status
+ *     summary: Update friendship details (e.g. status)
  *     tags: [Friendships]
  *     parameters:
  *       - in: path
@@ -28,11 +53,30 @@ router.post('/', friendshipController.sendFriendRequest);
  *         required: true
  *         schema:
  *           type: string
+ *         description: Friendship ID to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - requester
+ *               - recipient
+ *               - requestStatus
+ *             properties:
+ *               requester:
+ *                 type: string
+ *               recipient:
+ *                 type: string
+ *               requestStatus:
+ *                 type: string
+ *                 enum: [pending, accepted, blocked, rejected]
  *     responses:
  *       200:
- *         description: Friend request updated successfully
+ *         description: Friend request updated
  *       404:
- *         description: Friend request not found
+ *         description: Friendship not found
  */
 router.put('/:id', friendshipController.updateFriendRequest);
 
@@ -40,7 +84,7 @@ router.put('/:id', friendshipController.updateFriendRequest);
  * @swagger
  * /api/friendships/requests/{userId}:
  *   get:
- *     summary: Get pending friend requests for a user
+ *     summary: Get pending friend requests received by a user
  *     tags: [Friendships]
  *     parameters:
  *       - in: path
@@ -48,9 +92,10 @@ router.put('/:id', friendshipController.updateFriendRequest);
  *         required: true
  *         schema:
  *           type: string
+ *         description: The recipient user ID
  *     responses:
  *       200:
- *         description: Friend requests retrieved successfully
+ *         description: List of pending friend requests
  */
 router.get('/requests/:userId', friendshipController.getFriendRequests);
 
@@ -58,7 +103,7 @@ router.get('/requests/:userId', friendshipController.getFriendRequests);
  * @swagger
  * /api/friendships/friends/{userId}:
  *   get:
- *     summary: Get all friendships for a user
+ *     summary: Get all accepted friendships of a user
  *     tags: [Friendships]
  *     parameters:
  *       - in: path
@@ -68,7 +113,7 @@ router.get('/requests/:userId', friendshipController.getFriendRequests);
  *           type: string
  *     responses:
  *       200:
- *         description: Friendships retrieved successfully
+ *         description: List of accepted friendships
  */
 router.get('/friends/:userId', friendshipController.getFriends);
 
@@ -76,7 +121,7 @@ router.get('/friends/:userId', friendshipController.getFriends);
  * @swagger
  * /api/friendships/list/{userId}:
  *   get:
- *     summary: Get friend list (just the friend users) for a user
+ *     summary: Get direct list of friend users (excluding self)
  *     tags: [Friendships]
  *     parameters:
  *       - in: path
@@ -86,7 +131,7 @@ router.get('/friends/:userId', friendshipController.getFriends);
  *           type: string
  *     responses:
  *       200:
- *         description: Friend list retrieved successfully
+ *         description: List of friends (account details)
  */
 router.get('/list/:userId', friendshipController.getFriendList);
 
@@ -94,7 +139,7 @@ router.get('/list/:userId', friendshipController.getFriendList);
  * @swagger
  * /api/friendships/{id}:
  *   delete:
- *     summary: Delete friendship
+ *     summary: Delete a friendship by ID
  *     tags: [Friendships]
  *     parameters:
  *       - in: path
@@ -104,7 +149,7 @@ router.get('/list/:userId', friendshipController.getFriendList);
  *           type: string
  *     responses:
  *       200:
- *         description: Friendship deleted successfully
+ *         description: Friendship deleted
  *       404:
  *         description: Friendship not found
  */

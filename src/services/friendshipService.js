@@ -1,67 +1,48 @@
 const Friendship = require('../models/Friendship');
 
-exports.createFriendship = async (friendshipData) => {
-  const friendship = new Friendship(friendshipData);
+exports.createFriendship = async (data) => {
+  const friendship = new Friendship(data);
   return await friendship.save();
 };
 
-exports.checkExistingFriendship = async (requesterId, recipientId) => {
+exports.checkExistingFriendship = async (requester, recipient) => {
   return await Friendship.findOne({
     $or: [
-      { requester: requesterId, recipient: recipientId },
-      { requester: recipientId, recipient: requesterId }
+      { requester, recipient },
+      { requester: recipient, recipient: requester }
     ]
   });
 };
 
-exports.updateFriendship = async (friendshipId, updateData) => {
-  return await Friendship.findByIdAndUpdate(
-    friendshipId,
-    updateData,
-    { new: true }
-  );
+exports.updateFriendship = async (id, data) => {
+  return await Friendship.findByIdAndUpdate(id, data, { new: true });
 };
 
 exports.getFriendRequestsByUserId = async (userId) => {
   return await Friendship.find({
     recipient: userId,
     requestStatus: 'pending'
-  }).populate('requester', 'fullname username imageURL email currentStatus');
+  }).populate('requester', 'fullname username email imageURL currentStatus');
 };
 
 exports.getFriendsByUserId = async (userId) => {
   return await Friendship.find({
-    $or: [
-      { requester: userId },
-      { recipient: userId }
-    ],
-    requestStatus: 'accepted'
-  }).populate('requester recipient', 'fullname username imageURL email currentStatus');
+    requestStatus: 'accepted',
+    $or: [{ requester: userId }, { recipient: userId }]
+  }).populate('requester recipient', 'fullname username email imageURL currentStatus');
 };
 
 exports.getFriendListByUserId = async (userId) => {
   const friendships = await Friendship.find({
-    $or: [
-      { requester: userId },
-      { recipient: userId }
-    ],
-    requestStatus: 'accepted'
-  }).populate('requester recipient', 'fullname username imageURL email currentStatus lastOnline');
-  
-  // Return the friend (not the current user) from each friendship
-  return friendships.map(friendship => {
-    if (friendship.requester._id.toString() === userId) {
-      return friendship.recipient;
-    } else {
-      return friendship.requester;
-    }
-  });
+    requestStatus: 'accepted',
+    $or: [{ requester: userId }, { recipient: userId }]
+  }).populate('requester recipient', 'fullname username email imageURL currentStatus lastOnline');
+
+  return friendships.map(f =>
+    f.requester._id.toString() === userId ? f.recipient : f.requester
+  );
 };
 
-exports.deleteFriendship = async (friendshipId) => {
-  return await Friendship.findByIdAndDelete(friendshipId);
-};
-
-exports.getFriendshipById = async (friendshipId) => {
-  return await Friendship.findById(friendshipId);
+exports.deleteFriendship = async (id) => {
+  return await Friendship.findByIdAndDelete(id);
 };
