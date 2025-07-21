@@ -1,0 +1,57 @@
+const axios = require('axios');
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/01v1/models/gemini-1.5-pro:generateContent';
+
+/**
+ * Sends a message to Gemini and returns the AI's response.
+ * @param {string} message - User's input message.
+ * @param {string} [context=""] - Optional conversation context.
+ * @returns {Promise<string>} - AI-generated response.
+ */
+async function askGemini(message, context = "") {
+  if (!GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY is not set in environment variables');
+  }
+
+  const systemPrompt = "You are Gemini, a friendly and helpful AI assistant. Respond in a conversational, concise, and engaging tone. Tailor your responses to be supportive and relevant to the user's query. If the user asks for specific information, provide accurate and clear answers.";
+
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: systemPrompt },
+          { text: context },
+          { text: message }
+        ]
+      }
+    ]
+  };
+
+  try {
+    const response = await axios.post(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, payload, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const text = response?.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('Invalid response from Gemini');
+
+    return text;
+  } catch (error) {
+    console.error('❌ Gemini API error:', error.response?.data || error.message);
+    throw new Error(`Gemini API error: ${error.response?.data?.error?.message || error.message}`);
+  }
+}
+
+/**
+ * Placeholder to fetch conversation history (e.g., from a database).
+ * @returns {Promise<string>} - Formatted conversation history.
+ */
+async function getGeminiHistory() {
+  return []; // In a real case, fetch from DB or cache
+}
+
+module.exports = {
+  askGemini,
+  getGeminiHistory
+};

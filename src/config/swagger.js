@@ -39,6 +39,10 @@ const options = {
       {
         name: 'Friendships',
         description: 'Friend request and friendship management'
+      },
+      {
+        name: 'Gemini',
+        description: 'AI-powered chat with Gemini model'
       }
     ],
     components: {
