@@ -9,6 +9,7 @@ const Chat = require('./src/models/Chat');
 const setupSwagger = require('./src/config/swagger');
 const onlineUsersManager = require('./src/utils/onlineUsers');
 
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -30,6 +31,7 @@ const messageReactionRoutes = require('./src/routes/messageReactionRoutes');
 const friendshipRoutes = require('./src/routes/friendshipRoutes');
 const authRoutes = require('./src/routes/authRoutes');
 const Message = require('./src/models/Message');
+const geminiRoutes = require('./src/routes/geminiRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/accounts', accountRoutes);
@@ -37,6 +39,7 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api', messageReactionRoutes);
 app.use('/api/friendships', friendshipRoutes);
+app.use('/api/gemini', geminiRoutes);
 
 app.get('/api/chats/:chatId/participants', async (req, res) => {
   try {
