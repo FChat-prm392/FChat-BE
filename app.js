@@ -184,8 +184,12 @@ io.on('connection', (socket) => {
       userId: userId,
       socketId: socket.id,
       isOnline: true,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      registrationInfo: registrationInfo,
+      totalOnlineUsers: allOnlineUsers.size
     });
+    
+    console.log(`✅ Registration verification sent to user ${userId} - Socket: ${socket.id}, Total online: ${allOnlineUsers.size}`);
     
     // Broadcast user online status to all clients
     io.emit('user-status', { userId, isOnline: true, lastOnline: null });
@@ -284,15 +288,23 @@ io.on('connection', (socket) => {
     
     const isRegistered = onlineUsersManager.has(userId);
     const socketId = onlineUsersManager.getSocketId(userId);
+    const allOnlineUsers = onlineUsersManager.getAll();
+    
+    // Check if socket still exists
+    const socketExists = socketId ? io.sockets.sockets.has(socketId) : false;
     
     socket.emit('registration-verified', {
       userId: userId,
       socketId: socketId || socket.id,
       isOnline: isRegistered,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      socketExists: socketExists,
+      currentSocketMatches: socketId === socket.id,
+      totalOnlineUsers: allOnlineUsers.size,
+      verificationRequested: true
     });
     
-    console.log(`✅ Verification response sent - User: ${userId}, Registered: ${isRegistered}`);
+    console.log(`✅ Verification response sent - User: ${userId}, Registered: ${isRegistered}, Socket exists: ${socketExists}, Current socket matches: ${socketId === socket.id}`);
   });
 
   // Handle heartbeat to maintain connection
@@ -488,6 +500,9 @@ io.on('connection', (socket) => {
 
 socket.on('reaction-added', async (data) => {
   try {
+    console.log(`😊 Reaction added event - User: ${data.userName} (${data.userId}), Message: ${data.messageId}, Emoji: ${data.emoji}, Chat: ${data.chatId}`);
+    
+    // Emit to the chat room first
     socket.to(data.chatId).emit('reaction-added', {
       messageId: data.messageId,
       userId: data.userId,
@@ -496,6 +511,72 @@ socket.on('reaction-added', async (data) => {
       timestamp: data.timestamp
     });
     
+    // Also emit directly to each participant to ensure delivery
+    try {
+      const chat = await Chat.findById(data.chatId).populate('participants');
+      if (chat && chat.participants) {
+        console.log(`😊 Sending reaction to ${chat.participants.length} participants`);
+        const allOnlineUsers = onlineUsersManager.getAll();
+        
+        chat.participants.forEach(participant => {
+          const participantId = participant._id.toString();
+          
+          // Skip the sender
+          if (participantId === data.userId) return;
+          
+          console.log(`😊 Checking participant: ${participantId} for reaction delivery`);
+          
+          const participantSocketId = onlineUsersManager.getSocketId(participantId);
+          if (participantSocketId) {
+            console.log(`✅ Sending reaction to participant ${participantId} via socket ${participantSocketId}`);
+            
+            // Verify the socket still exists
+            const participantSocket = io.sockets.sockets.get(participantSocketId);
+            if (participantSocket) {
+              io.to(participantSocketId).emit('reaction-added', {
+                messageId: data.messageId,
+                userId: data.userId,
+                userName: data.userName,
+                emoji: data.emoji,
+                timestamp: data.timestamp
+              });
+              console.log(`😊 Reaction delivered to user ${participantId}`);
+            } else {
+              console.log(`⚠️ Socket ${participantSocketId} for participant ${participantId} no longer exists, removing from online users`);
+              onlineUsersManager.remove(participantId);
+            }
+          } else {
+            console.log(`⚠️ No socket found for participant ${participantId} for reaction delivery`);
+            
+            // Check if user has a socket but wasn't properly registered
+            let foundSocket = null;
+            io.sockets.sockets.forEach((sock, sockId) => {
+              if (sock.userId === participantId) {
+                foundSocket = sockId;
+                console.log(`🔧 Found unregistered socket ${sockId} for user ${participantId}, re-registering and sending reaction...`);
+                onlineUsersManager.add(participantId, sockId);
+                io.to(sockId).emit('reaction-added', {
+                  messageId: data.messageId,
+                  userId: data.userId,
+                  userName: data.userName,
+                  emoji: data.emoji,
+                  timestamp: data.timestamp
+                });
+                console.log(`😊 Reaction sent to re-registered user ${participantId}`);
+              }
+            });
+            
+            if (!foundSocket) {
+              console.log(`🔍 User ${participantId} completely offline for reaction`);
+            }
+          }
+        });
+      }
+    } catch (chatError) {
+      console.error('❌ Error fetching chat for reaction delivery:', chatError);
+    }
+    
+    // Send FCM notifications to offline participants
     try {
       const chat = await Chat.findById(data.chatId).populate('participants');
       if (chat && chat.participants) {
@@ -514,6 +595,7 @@ socket.on('reaction-added', async (data) => {
                 type: 'reaction'
               }
             );
+            console.log(`📱 Reaction FCM sent to offline user ${participant._id}`);
           }
         }
       }
@@ -527,6 +609,9 @@ socket.on('reaction-added', async (data) => {
 
 socket.on('reaction-removed', async (data) => {
   try {
+    console.log(`😔 Reaction removed event - User: ${data.userName} (${data.userId}), Message: ${data.messageId}, Emoji: ${data.emoji}, Chat: ${data.chatId}`);
+    
+    // Emit to the chat room first
     socket.to(data.chatId).emit('reaction-removed', {
       messageId: data.messageId,
       userId: data.userId,
@@ -534,6 +619,70 @@ socket.on('reaction-removed', async (data) => {
       emoji: data.emoji,
       timestamp: data.timestamp
     });
+    
+    // Also emit directly to each participant to ensure delivery
+    try {
+      const chat = await Chat.findById(data.chatId).populate('participants');
+      if (chat && chat.participants) {
+        console.log(`😔 Sending reaction removal to ${chat.participants.length} participants`);
+        
+        chat.participants.forEach(participant => {
+          const participantId = participant._id.toString();
+          
+          // Skip the sender
+          if (participantId === data.userId) return;
+          
+          console.log(`😔 Checking participant: ${participantId} for reaction removal delivery`);
+          
+          const participantSocketId = onlineUsersManager.getSocketId(participantId);
+          if (participantSocketId) {
+            console.log(`✅ Sending reaction removal to participant ${participantId} via socket ${participantSocketId}`);
+            
+            // Verify the socket still exists
+            const participantSocket = io.sockets.sockets.get(participantSocketId);
+            if (participantSocket) {
+              io.to(participantSocketId).emit('reaction-removed', {
+                messageId: data.messageId,
+                userId: data.userId,
+                userName: data.userName,
+                emoji: data.emoji,
+                timestamp: data.timestamp
+              });
+              console.log(`😔 Reaction removal delivered to user ${participantId}`);
+            } else {
+              console.log(`⚠️ Socket ${participantSocketId} for participant ${participantId} no longer exists, removing from online users`);
+              onlineUsersManager.remove(participantId);
+            }
+          } else {
+            console.log(`⚠️ No socket found for participant ${participantId} for reaction removal delivery`);
+            
+            // Check if user has a socket but wasn't properly registered
+            let foundSocket = null;
+            io.sockets.sockets.forEach((sock, sockId) => {
+              if (sock.userId === participantId) {
+                foundSocket = sockId;
+                console.log(`🔧 Found unregistered socket ${sockId} for user ${participantId}, re-registering and sending reaction removal...`);
+                onlineUsersManager.add(participantId, sockId);
+                io.to(sockId).emit('reaction-removed', {
+                  messageId: data.messageId,
+                  userId: data.userId,
+                  userName: data.userName,
+                  emoji: data.emoji,
+                  timestamp: data.timestamp
+                });
+                console.log(`😔 Reaction removal sent to re-registered user ${participantId}`);
+              }
+            });
+            
+            if (!foundSocket) {
+              console.log(`🔍 User ${participantId} completely offline for reaction removal`);
+            }
+          }
+        });
+      }
+    } catch (chatError) {
+      console.error('❌ Error fetching chat for reaction removal delivery:', chatError);
+    }
   } catch (error) {
     console.error('❌ Error handling reaction-removed:', error);
   }
@@ -615,15 +764,21 @@ socket.on('reaction-removed', async (data) => {
 
   socket.on('voice-data', (data) => {
     try {
-        const { audioData, chatId, userId, timestamp } = data;
+        const { audioData, chatId, userId, timestamp, priority } = data;
         
+        // Immediate forwarding for low latency - no extensive logging
         socket.to(chatId).emit('voice-data', {
             audioData: audioData,
             userId: userId,
             timestamp: timestamp
         });
+        
+        // Only log errors or high-priority issues
+        if (!audioData || !userId) {
+            console.error('❌ Invalid voice data received');
+        }
     } catch (error) {
-        console.error('Error handling voice data:', error);
+        console.error('❌ Error handling voice data:', error);
     }
 });
 
@@ -690,7 +845,6 @@ socket.on('reaction-removed', async (data) => {
         if (message && message.senderID) {
           const senderSocketId = onlineUsersManager.getSocketId(message.senderID._id.toString());
           if (senderSocketId) {
-            console.log(`📡 Sending read status to sender ${message.senderID._id.toString()} via socket ${senderSocketId}`);
             io.to(senderSocketId).emit('message-status-update', {
               messageId: data.messageId,
               status: 'read',
@@ -837,6 +991,39 @@ socket.on('reaction-removed', async (data) => {
     }
   });
 
+  // Handle force call termination
+  socket.on('call-force-end', (data) => {
+    console.log(`🚫 Force call termination - Call ID: ${data.callId}, Reason: ${data.reason}`);
+    
+    const callerSocketId = onlineUsersManager.getSocketId(data.callerId);
+    const receiverSocketId = onlineUsersManager.getSocketId(data.receiverId);
+    
+    const forceEndData = {
+      callId: data.callId,
+      reason: data.reason,
+      forceStop: true,
+      timestamp: data.timestamp
+    };
+    
+    // Send force termination to both participants
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call-force-end', forceEndData);
+      console.log(`🚫 Force termination sent to caller ${data.callerId}`);
+    }
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('call-force-end', forceEndData);
+      console.log(`🚫 Force termination sent to receiver ${data.receiverId}`);
+    }
+    
+    // Also send regular call-ended as fallback
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call-ended', { callId: data.callId, timestamp: data.timestamp });
+    }
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('call-ended', { callId: data.callId, timestamp: data.timestamp });
+    }
+  });
+
   socket.on('call-mute', (data) => {
     const otherParticipantId = data.participantId;
     const otherSocketId = onlineUsersManager.getSocketId(otherParticipantId);
@@ -865,16 +1052,21 @@ socket.on('reaction-removed', async (data) => {
 
   socket.on('video-data', (data) => {
     try {
-        const { videoData, chatId, userId, timestamp } = data;
+        const { videoData, chatId, userId, timestamp, priority } = data;
         
+        // Immediate forwarding for low latency
         socket.to(chatId).emit('video-data', {
             videoData: videoData,
             userId: userId,
             timestamp: timestamp
         });
         
+        // Minimal logging for performance
+        if (!videoData || !userId) {
+            console.error('❌ Invalid video data received');
+        }
     } catch (error) {
-        console.error('Error handling video data:', error);
+        console.error('❌ Error handling video data:', error);
     }
 });
 
