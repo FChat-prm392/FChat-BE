@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const geminiController = require('../controllers/geminiController');
+const geminiController = require('../controllers/geminiController.js');
 
 /**
  * @swagger
